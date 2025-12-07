@@ -1,0 +1,271 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>PC Builder - AI PC Configurator</title>
+<style>
+:root{
+ --p:#3b82f6;
+ --light-bg:#e6e9ef;
+ --dark-bg:#0f172a;
+ --light-card:#e6e9ef;
+ --dark-card:#0b1220;
+ --light-text:#111;
+ --dark-text:#f1f5f9;
+ --neom:8px;
+}
+body[data-theme="light"]{--bg:var(--light-bg);--card:var(--light-card);--txt:var(--light-text)}
+body[data-theme="dark"]{--bg:var(--dark-bg);--card:var(--dark-card);--txt:var(--dark-text)}
+body{
+ margin:0;font-family:system-ui;background:var(--bg);color:var(--txt);
+ min-height:100vh;display:flex;justify-content:center;align-items:center;
+}
+.app-frame{
+ width:100%;max-width:480px;padding:16px;border-radius:24px;
+ border:2px solid rgba(0,0,0,0.12);position:relative;
+ box-shadow:inset 6px 6px 12px rgba(0,0,0,0.1),
+            inset -6px -6px 12px rgba(255,255,255,0.6);
+ display:flex;flex-direction:column;align-items:center;
+}
+.toggle{
+ position:absolute;top:12px;right:12px;
+ width:48px;height:48px;border-radius:50%;
+ background:var(--card);cursor:pointer;font-size:22px;
+ box-shadow:6px 6px 12px rgba(0,0,0,.15),
+            -6px -6px 12px rgba(255,255,255,.7);
+ display:flex;justify-content:center;align-items:center;
+}
+.card{
+ background:var(--card);padding:14px;margin-top:14px;border-radius:20px;
+ box-shadow:6px 6px 12px rgba(0,0,0,0.12),
+            -6px -6px 12px rgba(255,255,255,0.6);
+ width:100%;
+ display:flex;flex-direction:column;align-items:center;
+}
+h1{text-align:center;margin:10px}
+input,select,button,textarea{
+ width:95%;margin-top:10px;padding:12px;border-radius:var(--neom);border:0;
+ background:var(--card);color:var(--txt);font-size:15px;
+ box-shadow:inset 4px 4px 8px rgba(0,0,0,0.12),
+            inset -4px -4px 8px rgba(255,255,255,0.7);
+ box-sizing:border-box;
+}
+button{
+ background:var(--p);color:white;font-weight:700;cursor:pointer;
+ box-shadow:6px 6px 15px rgba(0,0,0,0.2)
+}
+.reset-btn{background:#ef4444;margin-top:8px;}
+textarea{resize:none;}
+footer{text-align:center;font-size:13px;opacity:.8;margin:16px 0}
+</style>
+</head>
+<body data-theme="light">
+<div class="app-frame">
+<div class="toggle" id="themeBtn">🌙</div>
+<h1>PC Builder</h1>
+
+<div class="card">
+<label>Prebuilt Templates</label>
+<select id="template" onchange="applyTemplate()"></select>
+
+<label>Budget</label>
+<input type="range" id="slider" min="15000" max="10000000" step="5000">
+<input type="number" id="budget">
+
+<button onclick="generateBuild()">Generate AI Build</button>
+<button onclick="autoBuild()">Auto Build</button>
+<button class="reset-btn" onclick="resetAll()">Reset All</button>
+
+<div id="output"></div>
+</div>
+
+<div class="card">
+<select id="cpu"></select>
+<select id="gpu"></select>
+<select id="ram"></select>
+<select id="mb"></select>
+<select id="storage"></select>
+<select id="psu"></select>
+<select id="pcie"></select>
+<select id="caseBox"></select>
+
+<button onclick="checkCompatibility()">Compatibility Check</button>
+<button onclick="bottleneckCheck()">Bottleneck Check</button>
+<button onclick="fpsPredict()">FPS Prediction</button>
+<button onclick="futureProof()">Future Proof</button>
+<button onclick="estimatePrice()">Estimate Price</button>
+<button onclick="performanceClass()">Performance Class</button>
+<button onclick="healthCheck()">Health Check</button>
+<button onclick="autoPSU()">Auto PSU</button>
+<button onclick="exportBuild()">Export Build</button>
+<button class="reset-btn" onclick="resetAll()">Reset All</button>
+
+<textarea id="exportBox" rows="6"></textarea>
+<div id="checkOut"></div>
+</div>
+
+<footer>© Manik Roy 2025. All Rights Reserved.</footer>
+</div>
+
+<script>
+// ===== DARK MODE =====
+themeBtn.onclick=()=>{
+ document.body.dataset.theme = document.body.dataset.theme==="dark"?"light":"dark";
+ themeBtn.innerHTML = document.body.dataset.theme==="dark"?"☀️":"🌙";
+};
+
+// ===== COMPONENT DATA =====
+const CPU_LIST=["Intel Celeron G3900","Intel Pentium G5400","i3-10100","i3-10320","i5-10400","i5-10500","i5-10600K","i7-10700K","i7-11700K","i7-12700K","i7-13700K","i9-10900K","i9-11900K","i9-12900K","i9-13900K","Ryzen 3 3100","Ryzen 3 3300X","Ryzen 5 3600","Ryzen 5 5600X","Ryzen 5 7600X","Ryzen 7 5800X","Ryzen 7 7700X","Ryzen 9 5900X","Ryzen 9 7950X","Ryzen 9 7900X","Threadripper 3960X","Threadripper 3970X","Threadripper 3990X","Ryzen 9 7900XT"];
+const GPU_LIST=["GTX 1050","GTX 1650","GTX 1660","RTX 2060","RTX 3060","RTX 3060 Ti","RTX 3070","RTX 3070 Ti","RTX 3080","RTX 3080 Ti","RTX 3090","RTX 4070","RTX 4070 Ti","RTX 4080","RTX 4080 Ti","RTX 4090","RX 6600","RX 6700 XT","RX 6800","RX 6800 XT","RX 6900 XT","RX 7900 XT","RX 7900 XTX","RX 6950 XT","RX 6950 XTX","GTX 1080 Ti","GTX 1070","GTX 1060","RTX 3050"];
+const RAM_LIST=["4GB DDR3","8GB DDR3","8GB DDR4","16GB DDR4","32GB DDR4","64GB DDR4","16GB DDR5","32GB DDR5","64GB DDR5","128GB DDR5","8GB DDR5","12GB DDR5","24GB DDR5","48GB DDR5","96GB DDR5","2x4GB DDR3","2x8GB DDR4","2x16GB DDR4","2x32GB DDR4","4x8GB DDR4","4x16GB DDR4","4x32GB DDR4","2x16GB DDR5","2x32GB DDR5","4x16GB DDR5","4x32GB DDR5","8x16GB DDR5","8x32GB DDR5","16GB DDR3","16GB DDR4"];
+const MB_LIST=["H110","B460","Z490","Z590","Z690","B550","X570","X670","Z790","B660","B760","Z890","Z990","X670E","B650","X570S","Z590S","B550M","H510","B460M","H470","B560","Z590M","Z690M","Z790M","B660M","B760M","Z890M","Z990M","X670M"];
+const STORAGE_LIST=["250GB SSD","500GB SSD","1TB SSD","2TB SSD","500GB NVMe","1TB NVMe","2TB NVMe","4TB NVMe","500GB HDD","1TB HDD","2TB HDD","4TB HDD","6TB HDD","8TB HDD","10TB HDD","12TB HDD","16TB HDD","32GB USB","64GB USB","128GB USB","256GB USB","512GB USB","1TB USB","2TB USB","4TB USB","8TB USB","16TB USB","32TB USB","64TB USB","128TB USB"];
+const PSU_LIST=["450W","500W","550W","600W","650W","700W","750W","800W","850W","900W","1000W","1050W","1100W","1200W","1300W","1400W","1500W","1600W","1700W","1800W","1900W","2000W","2200W","2400W","2600W","2800W","3000W","3200W","3500W","4000W"];
+const PCIE_LIST=["PCIe 3.0","PCIe 3.1","PCIe 4.0","PCIe 4.1","PCIe 5.0","PCIe 5.1","PCIe 6.0","PCIe 6.1","PCIe 7.0","PCIe 7.1","PCIe 8.0","PCIe 8.1","PCIe 9.0","PCIe 9.1","PCIe 10.0","PCIe 10.1","PCIe 11.0","PCIe 11.1","PCIe 12.0","PCIe 12.1","PCIe 13.0","PCIe 13.1","PCIe 14.0","PCIe 14.1","PCIe 15.0","PCIe 15.1","PCIe 16.0","PCIe 16.1","PCIe 17.0","PCIe 17.1"];
+const CASE_LIST=["Mini Tower","Micro Tower","Mid Tower","Full Tower","Super Tower","Ultra Tower","Gaming Tower","Workstation Tower","Server Tower","Cube Case","HTPC Case","Open Frame","Desk Case","Rack Mount 2U","Rack Mount 4U","Mini ITX","Micro ATX","ATX","E-ATX","XL-ATX","Nano Tower","Compact Tower","Premium Tower","Extreme Tower","Streamer Tower","Creator Tower","VR Ready Tower","Overclock Tower","Custom Tower","Pro Builder Tower"];
+
+// TIER DATA
+const CPU_TIERS={"Celeron G3900":1,"Pentium G5400":2,"i3-10100":3,"i3-10320":3,"i5-10400":4,"i5-10500":4,"i5-10600K":5,"i7-10700K":6,"i7-11700K":6,"i7-12700K":7,"i7-13700K":7,"i9-10900K":8,"i9-11900K":8,"i9-12900K":9,"i9-13900K":10,"Ryzen 3 3100":3,"Ryzen 3 3300X":3,"Ryzen 5 3600":5,"Ryzen 5 5600X":5,"Ryzen 5 7600X":6,"Ryzen 7 5800X":7,"Ryzen 7 7700X":7,"Ryzen 9 5900X":9,"Ryzen 9 7950X":10,"Ryzen 9 7900X":9,"Threadripper 3960X":10,"Threadripper 3970X":10,"Threadripper 3990X":10,"Ryzen 9 7900XT":9};
+const GPU_TIERS={"GTX 1050":1,"GTX 1650":2,"GTX 1660":3,"RTX 2060":4,"RTX 3060":5,"RTX 3060 Ti":6,"RTX 3070":7,"RTX 3070 Ti":8,"RTX 3080":9,"RTX 3080 Ti":9,"RTX 3090":10,"RTX 4070":10,"RTX 4070 Ti":10,"RTX 4080":10,"RTX 4080 Ti":10,"RTX 4090":10,"RX 6600":4,"RX 6700 XT":5,"RX 6800":6,"RX 6800 XT":7,"RX 6900 XT":8,"RX 7900 XT":9,"RX 7900 XTX":10,"RX 6950 XT":8,"RX 6950 XTX":9,"GTX 1080 Ti":9,"GTX 1070":6,"GTX 1060":5,"RTX 3050":3};
+
+// PRICE MAP (simplified example)
+const PRICE_MAP={};
+CPU_LIST.forEach(c=>PRICE_MAP[c]=Math.floor(Math.random()*70000)+8000);
+GPU_LIST.forEach(g=>PRICE_MAP[g]=Math.floor(Math.random()*150000)+10000);
+RAM_LIST.forEach(r=>PRICE_MAP[r]=Math.floor(Math.random()*40000)+2000);
+MB_LIST.forEach(m=>PRICE_MAP[m]=Math.floor(Math.random()*40000)+3000);
+STORAGE_LIST.forEach(s=>PRICE_MAP[s]=Math.floor(Math.random()*50000)+2000);
+PSU_LIST.forEach(p=>PRICE_MAP[p]=Math.floor(Math.random()*40000)+2500);
+PCIE_LIST.forEach(pc=>PRICE_MAP[pc]=Math.floor(Math.random()*2000)+500);
+CASE_LIST.forEach(ca=>PRICE_MAP[ca]=Math.floor(Math.random()*15000)+2000);
+
+// ===== FILL DROPDOWNS =====
+function fill(id,list){ let el=document.getElementById(id); el.innerHTML=""; list.forEach(i=>el.innerHTML+=`<option>${i}</option>`);}
+fill("cpu",CPU_LIST); fill("gpu",GPU_LIST); fill("ram",RAM_LIST); fill("mb",MB_LIST); fill("storage",STORAGE_LIST);
+fill("psu",PSU_LIST); fill("pcie",PCIE_LIST); fill("caseBox",CASE_LIST);
+
+// ===== RESET & UPDATE =====
+const cpu=document.getElementById("cpu");
+const gpu=document.getElementById("gpu");
+const ram=document.getElementById("ram");
+const mb=document.getElementById("mb");
+const storage=document.getElementById("storage");
+const psu=document.getElementById("psu");
+const pcie=document.getElementById("pcie");
+const caseBox=document.getElementById("caseBox");
+const output=document.getElementById("output");
+const exportBox=document.getElementById("exportBox");
+const checkOut=document.getElementById("checkOut");
+const slider=document.getElementById("slider");
+const budget=document.getElementById("budget");
+
+function resetAll(){ 
+ [cpu,gpu,ram,mb,storage,psu,pcie,caseBox].forEach(el=>el.selectedIndex=0); 
+ slider.value=15000; budget.value=15000; 
+ output.innerText=""; checkOut.innerText=""; exportBox.value="";
+}
+
+function updateOutput(){ 
+ const c=`CPU: ${cpu.value}\nGPU: ${gpu.value}\nRAM: ${ram.value}\nMotherboard: ${mb.value}\nStorage: ${storage.value}\nPSU: ${psu.value}\nPCIe: ${pcie.value}\nCase: ${caseBox.value}`;
+ output.innerText=c;
+ exportBox.value=c;
+}
+[cpu,gpu,ram,mb,storage,psu,pcie,caseBox].forEach(el=>el.addEventListener('change',updateOutput));
+slider.oninput=()=>{budget.value=slider.value;};
+budget.oninput=()=>{slider.value=budget.value;};
+
+// ===== FUNCTIONAL LOGIC =====
+function checkCompatibility(){
+ let msg="";
+ if(cpu.value.includes("Intel") && mb.value.includes("B550")) msg+="⚠️ Intel CPU on AMD MB!\n";
+ if(cpu.value.includes("Ryzen") && mb.value.includes("Z490")) msg+="⚠️ AMD CPU on Intel MB!\n";
+ if(ram.value.includes("DDR4") && mb.value.includes("DDR5")) msg+="⚠️ DDR4 RAM not compatible with DDR5 MB!\n";
+ checkOut.innerText=msg || "✅ All components are compatible!";
+}
+
+function bottleneckCheck(){
+ let cT=CPU_TIERS[cpu.value], gT=GPU_TIERS[gpu.value];
+ let bottleneck=0;
+ if(cT>gT) bottleneck=(cT-gT)*10; else bottleneck=(gT-cT)*10;
+ checkOut.innerText=`⚡ Estimated bottleneck: ${bottleneck}%`;
+}
+
+function fpsPredict(){
+ let fps=CPU_TIERS[cpu.value]*10 + GPU_TIERS[gpu.value]*15;
+ if(parseInt(ram.value)>=32) fps=Math.floor(fps*1.05);
+ checkOut.innerText=`🎮 Estimated FPS: ${fps}`;
+}
+
+function futureProof(){
+ let score=CPU_TIERS[cpu.value]+GPU_TIERS[gpu.value]+(parseInt(ram.value)||16)/16;
+ let msg=score>=20?"High":score>=15?"Medium":"Low";
+ checkOut.innerText=`⏳ Future Proof Level: ${msg}`;
+}
+
+function estimatePrice(){
+ let total=PRICE_MAP[cpu.value]+PRICE_MAP[gpu.value]+PRICE_MAP[ram.value]+PRICE_MAP[mb.value]+PRICE_MAP[storage.value]+PRICE_MAP[psu.value]+PRICE_MAP[pcie.value]+PRICE_MAP[caseBox.value];
+ checkOut.innerText=`💰 Estimated Price: ₹${total.toLocaleString()}`;
+}
+
+function performanceClass(){
+ let total=CPU_TIERS[cpu.value]+GPU_TIERS[gpu.value]+(parseInt(ram.value)||16)/16;
+ let cls=total>=20?"Ultra":total>=15?"High":total>=10?"Mid":"Entry";
+ checkOut.innerText=`🏆 Performance Class: ${cls}`;
+}
+
+function healthCheck(){
+ let msgs=[];
+ if(parseInt(ram.value)<8) msgs.push("⚠️ RAM is too low");
+ if(PSU_LIST.indexOf(psu.value)<10) msgs.push("⚠️ PSU might be weak");
+ checkOut.innerText=msgs.join("\n") || "✅ Build healthy!";
+}
+
+function autoPSU(){
+ let totalW=CPU_TIERS[cpu.value]*35 + GPU_TIERS[gpu.value]*50 + 150;
+ let suitablePSU=PSU_LIST.find(p=>parseInt(p)>=totalW);
+ checkOut.innerText=`🔌 Recommended PSU: ${suitablePSU || "Use ≥"+totalW+"W"}`;
+}
+
+function exportBuild(){
+ exportBox.value=`CPU: ${cpu.value}\nGPU: ${gpu.value}\nRAM: ${ram.value}\nMotherboard: ${mb.value}\nStorage: ${storage.value}\nPSU: ${psu.value}\nPCIe: ${pcie.value}\nCase: ${caseBox.value}`;
+ checkOut.innerText="📋 Build exported!";
+}
+
+function generateBuild(){
+ // Simple AI build based on budget
+ let budgetVal=parseInt(budget.value);
+ let c=CPU_LIST.find(c=>PRICE_MAP[c]<=budgetVal*0.2) || CPU_LIST[0];
+ let g=GPU_LIST.find(g=>PRICE_MAP[g]<=budgetVal*0.3) || GPU_LIST[0];
+ let r=RAM_LIST.find(r=>PRICE_MAP[r]<=budgetVal*0.1) || RAM_LIST[0];
+ let m=MB_LIST.find(m=>PRICE_MAP[m]<=budgetVal*0.1) || MB_LIST[0];
+ let s=STORAGE_LIST.find(s=>PRICE_MAP[s]<=budgetVal*0.1) || STORAGE_LIST[0];
+ let p=PSU_LIST.find(p=>PRICE_MAP[p]<=budgetVal*0.1) || PSU_LIST[0];
+ let pc=PCIE_LIST[0];
+ let ca=CASE_LIST[0];
+ cpu.value=c; gpu.value=g; ram.value=r; mb.value=m; storage.value=s; psu.value=p; pcie.value=pc; caseBox.value=ca;
+ updateOutput();
+ checkOut.innerText="🤖 AI Build Generated!";
+}
+
+function autoBuild(){
+ cpu.selectedIndex=Math.floor(Math.random()*CPU_LIST.length);
+ gpu.selectedIndex=Math.floor(Math.random()*GPU_LIST.length);
+ ram.selectedIndex=Math.floor(Math.random()*RAM_LIST.length);
+ mb.selectedIndex=Math.floor(Math.random()*MB_LIST.length);
+ storage.selectedIndex=Math.floor(Math.random()*STORAGE_LIST.length);
+ psu.selectedIndex=Math.floor(Math.random()*PSU_LIST.length);
+ pcie.selectedIndex=Math.floor(Math.random()*PCIE_LIST.length);
+ caseBox.selectedIndex=Math.floor(Math.random()*CASE_LIST.length);
+ updateOutput();
+ checkOut.innerText="🎲 Random Build Generated!";
+}
+
+// ===== TEMPLATE PLACEHOLDER =====
+const TEMPLATES=["Entry Gaming","Office Build","Budget Build","Mid-range Gaming","High-end Gaming","Ultra Gaming","Workstation Basic","Workstation Advanced","Streamer Build","VR Ready","Content Creator","Video Editing","Photo Editing","AI/ML Build","Server Build","Home Theater PC","Compact Build","Mini ITX Build","Micro ATX Build","Full Tower Build","Overclocking Build","Extreme Performance","Multi-GPU Build","Budget VR","High FPS Gaming","Luxury Build","Silent Build","Energy Efficient","Hot-Swap Build","Future Proof Ultimate"];
+const templateEl=document.getElementById("template");
+TEMPLATES.forEach(t=>templateEl.innerHTML+=`<option>${t}</option>`);
+function applyTemplate(){ checkOut.innerText="Template Selected: "+templateEl.value;}
+</script>
+</body>
+</html>
